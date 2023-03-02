@@ -42,6 +42,7 @@ export type NewExperimentFormProps = {
   onClose?: () => void;
   onCreate?: (id: string) => void;
   inline?: boolean;
+  isVisual?: boolean;
 };
 
 function getDefaultVariations(num: number) {
@@ -74,6 +75,7 @@ const NewExperimentForm: FC<NewExperimentFormProps> = ({
   idea,
   msg,
   inline,
+  isVisual,
 }) => {
   const router = useRouter();
   const [step, setStep] = useState(initialStep || 0);
@@ -104,7 +106,9 @@ const NewExperimentForm: FC<NewExperimentFormProps> = ({
   >({
     defaultValues: {
       project: initialValue?.project || project || "",
-      implementation: initialValue?.implementation || "code",
+      implementation: isVisual
+        ? "visual"
+        : initialValue?.implementation || "code",
       trackingKey: initialValue?.trackingKey || "",
       datasource: initialValue?.datasource || datasources?.[0]?.id || "",
       exposureQueryId:
@@ -120,6 +124,7 @@ const NewExperimentForm: FC<NewExperimentFormProps> = ({
       attributionModel: initialValue?.attributionModel ?? "firstExposure",
       metrics: initialValue?.metrics || [],
       tags: initialValue?.tags || [],
+      visualEditorUrl: "",
       targetURLRegex: initialValue?.targetURLRegex || "",
       description: initialValue?.description || "",
       guardrails: initialValue?.guardrails || [],
@@ -160,15 +165,13 @@ const NewExperimentForm: FC<NewExperimentFormProps> = ({
               variationWeights: [0.5, 0.5],
             },
       ],
-      status: initialValue?.status || "running",
+      status: isVisual ? "draft" : initialValue?.status || "running",
       ideaSource: idea || "",
     },
   });
 
   const datasource = getDatasourceById(form.watch("datasource"));
   const supportsSQL = datasource?.properties?.queryLanguage === "sql";
-
-  const implementation = form.watch("implementation");
 
   const { apiCall } = useAuth();
 
@@ -177,6 +180,11 @@ const NewExperimentForm: FC<NewExperimentFormProps> = ({
     if (value.name.length < 1) {
       setStep(0);
       throw new Error("Experiment Name must not be empty");
+    }
+
+    if (isVisual && !value.visualEditorUrl) {
+      setStep(0);
+      throw new Error("Visual Editor rule must not be empty");
     }
 
     // TODO: more validation?
@@ -235,7 +243,7 @@ const NewExperimentForm: FC<NewExperimentFormProps> = ({
 
   return (
     <PagedModal
-      header={"New Experiment Analysis"}
+      header={isVisual ? "New Visual Experiment" : "New Experiment Analysis"}
       close={onClose}
       docSection="experiments"
       submit={onSubmit}
@@ -265,7 +273,7 @@ const NewExperimentForm: FC<NewExperimentFormProps> = ({
             }
           />
         )}
-        {!isImport && (
+        {!isImport && !isVisual && (
           <SelectField
             label="Use Visual Editor"
             options={[
@@ -279,6 +287,34 @@ const NewExperimentForm: FC<NewExperimentFormProps> = ({
             }}
           />
         )}
+
+        {isVisual && (
+          <div className="form-group">
+            <Field
+              required
+              label="Visual Editor Target URL"
+              {...form.register("visualEditorUrl")}
+              helpText={
+                "The web page the Visual Editor will make changes to. These changes can be applied to any site that matches your URL targeting rule."
+              }
+            />
+          </div>
+        )}
+
+        {isVisual && (
+          <Field
+            label="URL Targeting"
+            {...form.register("targetURLRegex")}
+            helpText={
+              <>
+                Target multiple URLs using regular expression. e.g.{" "}
+                <code>https://example.com/pricing</code> or{" "}
+                <code>^/post/[0-9]+</code>
+              </>
+            }
+          />
+        )}
+
         <div className="form-group">
           <label>Tags</label>
           <TagsInput
@@ -359,66 +395,68 @@ const NewExperimentForm: FC<NewExperimentFormProps> = ({
           />
         )}
       </Page>
-      <Page display="Variations">
-        {status !== "draft" ? (
-          <FeatureVariationsInput
-            valueType={"string"}
-            coverage={form.watch("phases.0.coverage")}
-            setCoverage={(coverage) =>
-              form.setValue("phases.0.coverage", coverage)
-            }
-            setWeight={(i, weight) =>
-              form.setValue(`phases.0.variationWeights.${i}`, weight)
-            }
-            valueAsId={true}
-            setVariations={(v) => {
-              form.setValue(
-                "variations",
-                v.map((data, i) => {
-                  return {
-                    // default values
-                    name: "",
-                    value: i,
-                    screenshots: [],
-                    // overwrite defaults
-                    ...data,
-                    // use value as key if provided to maintain backwards compatibility
-                    key: data.value || `${i}` || "",
-                  };
-                })
-              );
-              form.setValue(
-                "phases.0.variationWeights",
-                v.map((v) => v.weight)
-              );
-            }}
-            variations={form.watch("variations").map((v, i) => {
-              return {
-                value: v.key || "",
-                name: v.name,
-                weight: form.watch(`phases.0.variationWeights.${i}`),
-                id: v.id,
-              };
-            })}
-            coverageTooltip="This is just for documentation purposes and has no effect on the analysis."
-            showPreview={false}
-          />
-        ) : (
-          <ExperimentVariationsInput
-            variations={form.watch("variations").map((v) => {
-              return {
-                value: v.key || "",
-                name: v.name,
-                id: v.id,
-                screenshots: [],
-              };
-            })}
-            setVariations={(variations) =>
-              form.setValue("variations", variations)
-            }
-          />
-        )}
-      </Page>
+      {!isVisual && (
+        <Page display="Variations">
+          {status !== "draft" ? (
+            <FeatureVariationsInput
+              valueType={"string"}
+              coverage={form.watch("phases.0.coverage")}
+              setCoverage={(coverage) =>
+                form.setValue("phases.0.coverage", coverage)
+              }
+              setWeight={(i, weight) =>
+                form.setValue(`phases.0.variationWeights.${i}`, weight)
+              }
+              valueAsId={true}
+              setVariations={(v) => {
+                form.setValue(
+                  "variations",
+                  v.map((data, i) => {
+                    return {
+                      // default values
+                      name: "",
+                      value: i,
+                      screenshots: [],
+                      // overwrite defaults
+                      ...data,
+                      // use value as key if provided to maintain backwards compatibility
+                      key: data.value || `${i}` || "",
+                    };
+                  })
+                );
+                form.setValue(
+                  "phases.0.variationWeights",
+                  v.map((v) => v.weight)
+                );
+              }}
+              variations={form.watch("variations").map((v, i) => {
+                return {
+                  value: v.key || "",
+                  name: v.name,
+                  weight: form.watch(`phases.0.variationWeights.${i}`),
+                  id: v.id,
+                };
+              })}
+              coverageTooltip="This is just for documentation purposes and has no effect on the analysis."
+              showPreview={false}
+            />
+          ) : (
+            <ExperimentVariationsInput
+              variations={form.watch("variations").map((v) => {
+                return {
+                  value: v.key || "",
+                  name: v.name,
+                  id: v.id,
+                  screenshots: [],
+                };
+              })}
+              setVariations={(variations) =>
+                form.setValue("variations", variations)
+              }
+            />
+          )}
+        </Page>
+      )}
       <Page display="Goals">
         <div style={{ minHeight: 350 }}>
           <div className="form-group">
@@ -444,18 +482,6 @@ const NewExperimentForm: FC<NewExperimentFormProps> = ({
               datasource={datasource?.id}
             />
           </div>
-          {!isImport && implementation === "visual" && (
-            <Field
-              label="URL Targeting"
-              {...form.register("targetURLRegex")}
-              helpText={
-                <>
-                  e.g. <code>https://example.com/pricing</code> or{" "}
-                  <code>^/post/[0-9]+</code>
-                </>
-              }
-            />
-          )}
         </div>
       </Page>
     </PagedModal>

@@ -105,6 +105,7 @@ export interface ExperimentInterface {
   nextSnapshotAttempt?: Date;
   autoSnapshots: boolean;
   ideaSource?: string;
+  visualEditorUrl?: string;
 }
 
 export type ExperimentInterfaceStringDates = Omit<

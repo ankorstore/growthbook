@@ -10,7 +10,6 @@ import {
 } from "react-icons/fa";
 import Link from "next/link";
 import { IdeaInterface } from "back-end/types/idea";
-import { useFeature } from "@growthbook/growthbook-react";
 import useApi from "@/hooks/useApi";
 import { useAuth } from "@/services/auth";
 import Tabs from "@/components/Tabs/Tabs";
@@ -41,6 +40,7 @@ import DeleteButton from "@/components/DeleteButton/DeleteButton";
 import HeaderWithEdit from "@/components/Layout/HeaderWithEdit";
 import ExperimentReportsList from "@/components/Experiment/ExperimentReportsList";
 import VariationBox from "@/components/Experiment/VariationBox";
+import OpenVisualEditorLink from "../OpenVisualEditorLink";
 
 export interface Props {
   experiment: ExperimentInterfaceStringDates;
@@ -74,8 +74,6 @@ const MultiTabPage = ({
   const router = useRouter();
   const [dataSourceModalOpen, setDataSourceModalOpen] = useState(false);
   const [targetingModalOpen, setTargetingModalOpen] = useState(false);
-
-  const showTargeting = useFeature("show-experiment-targeting").on;
 
   const { apiCall } = useAuth();
 
@@ -445,9 +443,11 @@ const MultiTabPage = ({
                   <div className="alert alert-info">
                     <FaPalette /> This is a <strong>Visual Experiment</strong>.{" "}
                     {experiment.status === "draft" && canEdit && (
-                      <Link href={`/experiments/designer/${experiment.id}`}>
-                        <a className="d-none d-md-inline">Open the Editor</a>
-                      </Link>
+                      <OpenVisualEditorLink
+                        experimentId={experiment.id}
+                        visualEditorUrl={experiment.visualEditorUrl}
+                        openSettings={editInfo}
+                      />
                     )}
                   </div>
                 )}
@@ -456,12 +456,12 @@ const MultiTabPage = ({
                     <VariationBox
                       key={i}
                       canEdit={canEdit && !experiment.archived}
-                      experimentId={experiment.id}
+                      experiment={experiment}
                       i={i}
                       mutate={mutate}
                       v={v}
-                      isVisual={experiment.implementation === "visual"}
                       className="col-md mx-2 p-0 mb-3"
+                      openSettings={editInfo}
                     />
                   ))}
                 </div>
@@ -561,7 +561,22 @@ const MultiTabPage = ({
                 )}
               </RightRailSection>
 
-              {(experiment.implementation === "visual" || showTargeting) && (
+              {experiment.implementation === "visual" && (
+                <>
+                  <hr />
+                  <RightRailSection
+                    title="Editor URL"
+                    open={editInfo}
+                    canOpen={canEdit && !experiment.archived}
+                  >
+                    <RightRailSectionGroup title="URL" empty="Not set">
+                      {experiment.visualEditorUrl}
+                    </RightRailSectionGroup>
+                  </RightRailSection>
+                </>
+              )}
+
+              {experiment.implementation === "visual" && (
                 <>
                   <hr />
                   <RightRailSection

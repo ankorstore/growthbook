@@ -1,4 +1,7 @@
-import { Variation } from "back-end/types/experiment";
+import {
+  ExperimentInterfaceStringDates,
+  Variation,
+} from "back-end/types/experiment";
 import { useAuth } from "@/services/auth";
 import Carousel from "../Carousel";
 import ScreenshotUpload from "../EditExperiment/ScreenshotUpload";
@@ -7,23 +10,24 @@ import VisualCode from "./VisualCode";
 export interface Props {
   v: Variation;
   i: number;
-  experimentId: string;
+  experiment: ExperimentInterfaceStringDates;
   mutate: () => void;
   canEdit: boolean;
-  isVisual?: boolean;
   className?: string;
+  openSettings?: () => void;
 }
 
 export default function VariationBox({
   v,
   i,
   canEdit,
-  experimentId,
-  isVisual = false,
+  experiment,
   mutate,
   className,
+  openSettings,
 }: Props) {
   const { apiCall } = useAuth();
+  const isVisual = experiment.implementation === "visual";
 
   return (
     <div
@@ -44,8 +48,9 @@ export default function VariationBox({
           <VisualCode
             dom={v.dom || []}
             css={v.css || ""}
-            experimentId={experimentId}
+            experiment={experiment}
             control={i === 0}
+            openSettings={openSettings}
           />
         )}
       </div>
@@ -58,7 +63,7 @@ export default function VariationBox({
                   const { status, message } = await apiCall<{
                     status: number;
                     message?: string;
-                  }>(`/experiment/${experimentId}/variation/${i}/screenshot`, {
+                  }>(`/experiment/${experiment.id}/variation/${i}/screenshot`, {
                     method: "DELETE",
                     body: JSON.stringify({
                       url: v.screenshots[j].path,
@@ -86,7 +91,7 @@ export default function VariationBox({
       {canEdit && (
         <div className="p-3">
           <ScreenshotUpload
-            experiment={experimentId}
+            experiment={experiment.id}
             variation={i}
             onSuccess={() => mutate()}
           />
