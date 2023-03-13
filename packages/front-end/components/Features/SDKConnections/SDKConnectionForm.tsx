@@ -54,6 +54,7 @@ export default function SDKConnectionForm({
       encryptPayload: initialValue.encryptPayload || false,
       proxyEnabled: initialValue.proxy?.enabled || false,
       proxyHost: initialValue.proxy?.host || "",
+      proxyHostExternal: initialValue.proxy?.hostExternal || "",
     },
   });
 
@@ -75,7 +76,7 @@ export default function SDKConnectionForm({
 
   return (
     <Modal
-      header={edit ? "Edit SDK COnnection" : "New SDK Connection"}
+      header={edit ? "Edit SDK Connection" : "New SDK Connection"}
       size={"lg"}
       submit={form.handleSubmit(async (value) => {
         // Make sure encryption is disabled if they selected at least 1 language that's not supported
@@ -156,31 +157,36 @@ export default function SDKConnectionForm({
         options={environments.map((e) => ({ label: e.id, value: e.id }))}
       />
 
-      {isCloud() && gb.isOn("proxy-cloud") && (
-        <>
-          <div className="mb-3">
-            <label htmlFor="sdk-connection-proxy-toggle">
-              Use GrowthBook Proxy
-            </label>
-            <div>
-              <Toggle
-                id="sdk-connection-proxy-toggle"
-                value={form.watch("proxyEnabled")}
-                setValue={(val) => form.setValue("proxyEnabled", val)}
-              />
-            </div>
-          </div>
+      <div className="mb-3">
+        <label htmlFor="sdk-connection-proxy-toggle">
+          Use GrowthBook Proxy
+        </label>
+        <div>
+          <Toggle
+            id="sdk-connection-proxy-toggle"
+            value={form.watch("proxyEnabled")}
+            setValue={(val) => form.setValue("proxyEnabled", val)}
+          />
+        </div>
+      </div>
 
-          {form.watch("proxyEnabled") && (
-            <Field
-              label="GrowthBook Proxy Host"
-              required
-              placeholder="https://"
-              type="url"
-              {...form.register("proxyHost")}
-            />
-          )}
-        </>
+      {form.watch("proxyEnabled") && (
+        <Field
+          label="GrowthBook Proxy Host"
+          required
+          placeholder="https://"
+          type="url"
+          {...form.register("proxyHostExternal")}
+        />
+      )}
+      {form.watch("proxyEnabled") && !isCloud() && (
+        <Field
+          label="GrowthBook Proxy Internal Host"
+          required
+          placeholder="https://"
+          type="url"
+          {...form.register("proxyHost")}
+        />
       )}
 
       {languages.length > 0 && !hasSDKsWithoutEncryptionSupport && (

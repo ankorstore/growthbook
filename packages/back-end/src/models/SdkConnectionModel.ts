@@ -68,9 +68,10 @@ function addEnvProxySettings(proxy: ProxyConnection): ProxyConnection {
 
   return {
     ...proxy,
-    enabled: PROXY_ENABLED,
-    host: PROXY_HOST_INTERNAL || PROXY_HOST_PUBLIC,
-    hostExternal: PROXY_HOST_PUBLIC || PROXY_HOST_INTERNAL,
+    enabled: proxy.enabled || PROXY_ENABLED,
+    host: proxy.host || PROXY_HOST_INTERNAL || PROXY_HOST_PUBLIC,
+    hostExternal:
+      proxy.hostExternal || PROXY_HOST_PUBLIC || PROXY_HOST_INTERNAL,
   };
 }
 
@@ -109,6 +110,7 @@ export const createSDKConnectionValidator = z
     encryptPayload: z.boolean(),
     proxyEnabled: z.boolean().optional(),
     proxyHost: z.string().optional(),
+    proxyHostExternal: z.string().optional(),
   })
   .strict();
 
@@ -122,11 +124,11 @@ export async function createSDKConnection(params: CreateSDKConnectionParams) {
   const {
     proxyEnabled,
     proxyHost,
+    proxyHostExternal,
     languages,
     ...otherParams
   } = createSDKConnectionValidator.parse(params);
 
-  // TODO: if using a proxy, try to validate the connection
   const connection: SDKConnectionInterface = {
     ...otherParams,
     languages: languages as SDKLanguage[],
@@ -139,8 +141,8 @@ export async function createSDKConnection(params: CreateSDKConnectionParams) {
     key: generateSDKConnectionKey(),
     proxy: addEnvProxySettings({
       enabled: !!proxyEnabled,
-      host: proxyHost || "",
-      hostExternal: proxyHost || "",
+      host: proxyHost || proxyHostExternal || "",
+      hostExternal: proxyHostExternal || proxyHost || "",
       signingKey: generateSigningKey(),
       connected: false,
       lastError: null,
@@ -166,6 +168,7 @@ export const editSDKConnectionValidator = z
     languages: z.array(z.string()).optional(),
     proxyEnabled: z.boolean().optional(),
     proxyHost: z.string().optional(),
+    proxyHostExternal: z.string().optional(),
     environment: z.string().optional(),
     project: z.string().optional(),
     encryptPayload: z.boolean(),
@@ -179,6 +182,7 @@ export async function editSDKConnection(
   const {
     proxyEnabled,
     proxyHost,
+    proxyHostExternal,
     ...otherChanges
   } = editSDKConnectionValidator.parse(updates);
 
@@ -188,8 +192,17 @@ export async function editSDKConnection(
   if (proxyEnabled !== undefined && proxyEnabled !== connection.proxy.enabled) {
     newProxy.enabled = proxyEnabled;
   }
-  if (proxyHost !== undefined && proxyHost !== connection.proxy.host) {
-    newProxy.host = proxyHost;
+
+  if (
+    proxyHostExternal !== undefined &&
+    proxyHostExternal !== connection.proxy.hostExternal
+  ) {
+    newProxy.host = proxyHostExternal;
+
+    if (proxyHost !== undefined && proxyHost !== connection.proxy.host) {
+      newProxy.host = proxyHost;
+      newProxy.hostExternal = proxyHostExternal;
+    }
 
     const res = await testProxyConnection(
       {
